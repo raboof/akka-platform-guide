@@ -8,19 +8,27 @@ import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.cluster.MemberStatus
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.cluster.typed.Cluster
-import akka.cluster.typed.Join
 import akka.persistence.testkit.scaladsl.PersistenceInit
+import akka.testkit.SocketUtil
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import org.scalatest.OptionValues
 import org.scalatest.wordspec.AnyWordSpecLike
 import shopping.cart.repository.ItemPopularityRepositoryImpl
-import shopping.cart.repository.ScalikeJdbcSetup
 import shopping.cart.repository.ScalikeJdbcSession
+import shopping.cart.repository.ScalikeJdbcSetup
 
 object ItemPopularityIntegrationSpec {
-  val config: Config =
-    ConfigFactory.load("item-popularity-integration-test.conf")
+  private val grpcPort = SocketUtil.temporaryServerAddress("127.0.0.1").getPort
+  private val managementPort = SocketUtil.temporaryServerAddress("127.0.0.1").getPort
+
+  private val ServiceName = "shopping-cart-service"
+  private val config: Config =
+    DynamicTestConfig.endpointConfig(ServiceName, grpcPort) // dynamic endpoints config
+      .withFallback(DynamicTestConfig.clusteringConfig(ServiceName, managementPort)) // dynamic cluster config
+      .withFallback(ConfigFactory.parseResources("persistence-test.conf")) // persistence test overrides
+      .withFallback(ConfigFactory.load("application.conf")) // application config and reference.conf
+      .resolve()
 }
 
 class ItemPopularityIntegrationSpec
@@ -32,19 +40,20 @@ class ItemPopularityIntegrationSpec
     new ItemPopularityRepositoryImpl()
 
   override protected def beforeAll(): Unit = {
+    super.beforeAll()
     ScalikeJdbcSetup.init(system)
     CreateTableTestUtils.dropAndRecreateTables(system)
-    // avoid concurrent creation of keyspace and tables
+    // avoid concurrent creation of tables
     val timeout = 10.seconds
     Await.result(
       PersistenceInit.initializeDefaultPlugins(system, timeout),
       timeout)
 
+    // Start a sharded persistent entity
     ShoppingCart.init(system)
 
+    // Start the projection under test
     ItemPopularityProjection.init(system, itemPopularityRepository)
-
-    super.beforeAll()
   }
 
   override protected def afterAll(): Unit = {
@@ -53,8 +62,6 @@ class ItemPopularityIntegrationSpec
 
   "Item popularity projection" should {
     "init and join Cluster" in {
-//      Cluster(system).manager ! Join(Cluster(system).selfMember.address)
-
       // let the node join and become Up
       eventually {
         Cluster(system).selfMember.status should ===(MemberStatus.Up)

@@ -1,9 +1,5 @@
 package shopping.cart;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 import akka.actor.testkit.typed.javadsl.ActorTestKit;
 import akka.actor.testkit.typed.javadsl.TestProbe;
 import akka.actor.typed.ActorSystem;
@@ -18,14 +14,6 @@ import com.google.protobuf.Any;
 import com.google.protobuf.CodedInputStream;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import java.net.InetSocketAddress;
-import java.time.Duration;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.stream.Collectors;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.AfterClass;
@@ -42,34 +30,38 @@ import shopping.order.proto.OrderRequest;
 import shopping.order.proto.OrderResponse;
 import shopping.order.proto.ShoppingOrderService;
 
+import java.net.InetSocketAddress;
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 public class IntegrationTest {
 
   private static final Logger logger = LoggerFactory.getLogger(IntegrationTest.class);
 
-  private static Config sharedConfig() {
-    return ConfigFactory.load("integration-test.conf");
-  }
+  private static Config config(int nodeId) {
+    Config c = Arrays.asList(
+        "integration-test-specific",
+        "local" + nodeId + "-test",
+        "management-3node-test",
+        "local-shared-test",
+        "cluster-test",
+        "grpc",
+        "serialization",
+        "persistence-test"
+    ).stream().map(confName ->
+        ConfigFactory.parseResources(confName + ".conf")
+    ).reduce((c1, c2) -> c1.withFallback(c2)).get();
 
-  private static Config nodeConfig(
-      int grcpPort, List<Integer> managementPorts, int managementPortIndex) {
-    return ConfigFactory.parseString(
-        "shopping-cart-service.grpc.port = "
-            + grcpPort
-            + "\n"
-            + "akka.management.http.port = "
-            + managementPorts.get(managementPortIndex)
-            + "\n"
-            + "akka.discovery.config.services.shopping-cart-service.endpoints = [\n"
-            + "  { host = \"127.0.0.1\", port = "
-            + managementPorts.get(0)
-            + "},\n"
-            + "  { host = \"127.0.0.1\", port = "
-            + managementPorts.get(1)
-            + "},\n"
-            + "  { host = \"127.0.0.1\", port = "
-            + managementPorts.get(2)
-            + "},\n"
-            + "]");
+    return c.withFallback(ConfigFactory.load("application.conf")) // application config and reference config
+        .resolve();
   }
 
   private static class TestNodeFixture {
@@ -79,15 +71,15 @@ public class IntegrationTest {
     private final GrpcClientSettings clientSettings;
     private shopping.cart.proto.ShoppingCartService client = null;
 
-    public TestNodeFixture(int grcpPort, List<Integer> managementPorts, int managementPortIndex) {
+    public TestNodeFixture(int nodeId) {
       testKit =
           ActorTestKit.create(
               "IntegrationTest",
-              nodeConfig(grcpPort, managementPorts, managementPortIndex)
-                  .withFallback(sharedConfig()));
+              config(nodeId));
       system = testKit.system();
+      int grpcPort = system.settings().config().getInt("shopping-cart-service.grpc.port");
       clientSettings =
-          GrpcClientSettings.connectToServiceAt("127.0.0.1", grcpPort, system).withTls(false);
+          GrpcClientSettings.connectToServiceAt("127.0.0.1", grpcPort, system).withTls(false);
     }
 
     public shopping.cart.proto.ShoppingCartService getClient() {
@@ -155,17 +147,11 @@ public class IntegrationTest {
         CollectionConverters.SeqHasAsJava(
                 SocketUtil.temporaryServerAddresses(6, "127.0.0.1", false))
             .asJava();
-    List<Integer> grpcPorts =
-        inetSocketAddresses.subList(0, 3).stream()
-            .map(InetSocketAddress::getPort)
-            .collect(Collectors.toList());
-    List<Integer> managementPorts =
-        inetSocketAddresses.subList(3, 6).stream()
-            .map(InetSocketAddress::getPort)
-            .collect(Collectors.toList());
-    testNode1 = new TestNodeFixture(grpcPorts.get(0), managementPorts, 0);
-    testNode2 = new TestNodeFixture(grpcPorts.get(1), managementPorts, 1);
-    testNode3 = new TestNodeFixture(grpcPorts.get(2), managementPorts, 2);
+    // Warning: node id's are 1-based (not 0-based)
+    testNode1 = new TestNodeFixture(1);
+    testNode2 = new TestNodeFixture(2);
+    testNode3 = new TestNodeFixture(3);
+
     systems = Arrays.asList(testNode1.system, testNode2.system, testNode3.system);
 
     ApplicationContext springContext = SpringIntegration.applicationContext(testNode1.system);

@@ -11,10 +11,11 @@ import akka.cluster.MemberStatus;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import akka.cluster.sharding.typed.javadsl.EntityRef;
 import akka.cluster.typed.Cluster;
-import akka.cluster.typed.Join;
+import akka.testkit.SocketUtil;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import org.junit.BeforeClass;
@@ -28,7 +29,22 @@ import shopping.cart.repository.SpringIntegration;
 public class ItemPopularityIntegrationTest {
 
   private static Config config() {
-    return ConfigFactory.load("item-popularity-integration-test.conf");
+
+    Config c = Arrays.asList(
+        "item-popularity-integration-test-specific",
+        "local1-test",
+        "management-1node-test",
+        "local-shared-test",
+        "cluster-test",
+        "grpc",
+        "serialization",
+        "persistence-test"
+    ).stream().map(confName ->
+        ConfigFactory.parseResources(confName + ".conf")
+    ).reduce((c1, c2) -> c1.withFallback(c2)).get();
+
+    return c.withFallback(ConfigFactory.load("application.conf")) // application config and reference config
+        .resolve();
   }
 
   @ClassRule public static final TestKitJunitResource testKit = new TestKitJunitResource(config());
@@ -42,19 +58,18 @@ public class ItemPopularityIntegrationTest {
     ApplicationContext springContext = SpringIntegration.applicationContext(system);
     itemPopularityRepository = springContext.getBean(ItemPopularityRepository.class);
     JpaTransactionManager transactionManager = springContext.getBean(JpaTransactionManager.class);
-    // create schemas
+    // create DB schema and tables
     CreateTableTestUtils.createTables(transactionManager, system);
 
+    // Start the sharded persistent entities
     ShoppingCart.init(system);
 
+    // Start the projection under test
     ItemPopularityProjection.init(system, transactionManager, itemPopularityRepository);
 
-    // form a single node cluster and make sure that completes before running the test
-    Cluster node = Cluster.get(system);
-    node.manager().tell(Join.create(node.selfMember().address()));
-
-    // let the node join and become Up
+    // Await until the cluster has formed
     TestProbe<Object> probe = testKit.createTestProbe();
+    Cluster node = Cluster.get(system);
     probe.awaitAssert(
         () -> {
           assertEquals(MemberStatus.up(), node.selfMember().status());

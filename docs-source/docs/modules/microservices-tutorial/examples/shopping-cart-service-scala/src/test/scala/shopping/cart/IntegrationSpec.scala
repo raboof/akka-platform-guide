@@ -17,7 +17,7 @@ import akka.kafka.Subscriptions
 import akka.kafka.scaladsl.Consumer
 import akka.persistence.testkit.scaladsl.PersistenceInit
 import akka.testkit.SocketUtil
-import com.google.protobuf.any.{ Any => ScalaPBAny }
+import com.google.protobuf.any.{Any => ScalaPBAny}
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
@@ -36,39 +36,40 @@ import shopping.order.proto.OrderResponse
 import shopping.order.proto.ShoppingOrderService
 
 object IntegrationSpec {
-  val sharedConfig: Config = ConfigFactory.load("integration-test.conf")
 
-  private def nodeConfig(
-      grpcPort: Int,
-      managementPorts: Seq[Int],
-      managementPortIndex: Int): Config =
-    ConfigFactory.parseString(s"""
-      shopping-cart-service.grpc {
-        interface = "localhost"
-        port = $grpcPort
-      }
-      akka.management.http.port = ${managementPorts(managementPortIndex)}
-      akka.discovery.config.services {
-        "shopping-cart-service" {
-          endpoints = [
-            {host = "127.0.0.1", port = ${managementPorts(0)}},
-            {host = "127.0.0.1", port = ${managementPorts(1)}},
-            {host = "127.0.0.1", port = ${managementPorts(2)}}
-          ]
+  val integrationSpecOverrides =
+    """
+      akka.kafka.consumer {
+        kafka-clients {
+          auto.offset.reset = "earliest"
         }
       }
-      """)
+
+      akka.actor.testkit.typed {
+        single-expect-default = 5s
+        filter-leeway = 5s
+        system-shutdown-default = 30s
+      }
+      """
 
   class TestNodeFixture(
       grpcPort: Int,
       managementPorts: Seq[Int],
       managementPortIndex: Int) {
+
+    private val serviceName = "shopping-cart-service"
+    private val config: Config =
+      DynamicTestConfig.endpointConfig(serviceName, grpcPort) // dynamic endpoints config
+        .withFallback(DynamicTestConfig.clusteringConfig(serviceName, managementPorts, managementPortIndex)) // dynamic cluster config
+        .withFallback(ConfigFactory.parseString(integrationSpecOverrides)) // test-specific overrides
+        .withFallback(ConfigFactory.parseResources("persistence-test.conf")) // persistence test overrides
+        .withFallback(ConfigFactory.load("application.conf")) // application config and reference config
+        .resolve()
+
     val testKit =
       ActorTestKit(
         "IntegrationSpec",
-        nodeConfig(grpcPort, managementPorts, managementPortIndex)
-          .withFallback(sharedConfig)
-          .resolve())
+        config)
 
     def system: ActorSystem[_] = testKit.system
 
@@ -96,6 +97,8 @@ class IntegrationSpec
   implicit private val patience: PatienceConfig =
     PatienceConfig(10.seconds, Span(100, org.scalatest.time.Millis))
 
+  // -------------------------------
+  // Setup a 3-node cluster
   private val (grpcPorts, managementPorts) =
     SocketUtil
       .temporaryServerAddresses(6, "127.0.0.1")
@@ -112,9 +115,10 @@ class IntegrationSpec
 
   private val systems3 =
     List(testNode1, testNode2, testNode3).map(_.testKit.system)
+  // -------------------------------
 
-  private val kafkaTopicProbe =
-    testNode1.testKit.createTestProbe[Any]()
+  // -------------------------------
+  // Stubs for external services, brokers, etc...
 
   // stub of the ShoppingOrderService
   private val orderServiceProbe =
@@ -127,16 +131,10 @@ class IntegrationSpec
       }
     }
 
-  override protected def beforeAll(): Unit = {
-    super.beforeAll()
-    ScalikeJdbcSetup.init(testNode1.system)
-    CreateTableTestUtils.dropAndRecreateTables(testNode1.system)
-    // avoid concurrent creation of tables
-    val timeout = 10.seconds
-    Await.result(
-      PersistenceInit.initializeDefaultPlugins(testNode1.system, timeout),
-      timeout)
-  }
+  // A probe consuming from the Kafka topic to assert messages
+  // were published to the broker.
+  private val kafkaTopicProbe =
+    testNode1.testKit.createTestProbe[Any]()
 
   private def initializeKafkaTopicProbe(): Unit = {
     implicit val sys: ActorSystem[_] = testNode1.system
@@ -177,6 +175,20 @@ class IntegrationSpec
         logger.error(s"Test consumer of $topic failed", e)
       }
   }
+  // -------------------------------
+
+  // -------------------------------
+  // BeforeAndAfterAll
+  override protected def beforeAll(): Unit = {
+    super.beforeAll()
+    ScalikeJdbcSetup.init(testNode1.system)
+    CreateTableTestUtils.dropAndRecreateTables(testNode1.system)
+    // avoid concurrent creation of tables
+    val timeout = 10.seconds
+    Await.result(
+      PersistenceInit.initializeDefaultPlugins(testNode1.system, timeout),
+      timeout)
+  }
 
   override protected def afterAll(): Unit = {
     super.afterAll()
@@ -186,6 +198,7 @@ class IntegrationSpec
     // because responsible to close ScalikeJdbc connections
     testNode1.testKit.shutdownTestKit()
   }
+  // -------------------------------
 
   "Shopping Cart service" should {
     "init and join Cluster" in {

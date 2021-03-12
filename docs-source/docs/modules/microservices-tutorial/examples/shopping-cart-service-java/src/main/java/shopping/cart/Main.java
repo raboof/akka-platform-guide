@@ -5,8 +5,6 @@ import akka.actor.typed.javadsl.Behaviors;
 // tag::SendOrderProjection[]
 import akka.grpc.GrpcClientSettings;
 // end::SendOrderProjection[]
-import akka.management.cluster.bootstrap.ClusterBootstrap;
-import akka.management.javadsl.AkkaManagement;
 import com.typesafe.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
