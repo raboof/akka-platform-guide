@@ -19,16 +19,13 @@ import shopping.cart.repository.ScalikeJdbcSession
 import shopping.cart.repository.ScalikeJdbcSetup
 
 object ItemPopularityIntegrationSpec {
-  private val grpcPort :: managementPorts  =
-    SocketUtil
-      .temporaryServerAddresses(2, "127.0.0.1")
-      .map(_.getPort)
-      .toList
+  private val grpcPort = SocketUtil.temporaryServerAddress("127.0.0.1").getPort
+  private val managementPort = SocketUtil.temporaryServerAddress("127.0.0.1").getPort
 
-  private val serviceName = "shopping-cart-service"
+  private val ServiceName = "shopping-cart-service"
   private val config: Config =
-    DynamicTestConfig.endpointConfig(serviceName, grpcPort) // dynamic endpoints config
-      .withFallback(DynamicTestConfig.clusteringConfig(serviceName, managementPorts, 0)) // dynamic cluster config
+    DynamicTestConfig.endpointConfig(ServiceName, grpcPort) // dynamic endpoints config
+      .withFallback(DynamicTestConfig.clusteringConfig(ServiceName, managementPort)) // dynamic cluster config
       .withFallback(ConfigFactory.parseResources("persistence-test.conf")) // persistence test overrides
       .withFallback(ConfigFactory.load("application.conf")) // application config and reference.conf
       .resolve()

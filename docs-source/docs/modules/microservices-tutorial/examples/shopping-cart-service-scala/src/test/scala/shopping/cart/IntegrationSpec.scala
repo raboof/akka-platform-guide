@@ -39,18 +39,18 @@ object IntegrationSpec {
 
   val integrationSpecOverrides =
     """
-      |akka.kafka.consumer {
-      |  kafka-clients {
-      |    auto.offset.reset = "earliest"
-      |  }
-      |}
-      |
-      |akka.actor.testkit.typed {
-      |  single-expect-default = 5s
-      |  filter-leeway = 5s
-      |  system-shutdown-default = 30s
-      |}
-      |""".stripMargin
+      akka.kafka.consumer {
+        kafka-clients {
+          auto.offset.reset = "earliest"
+        }
+      }
+
+      akka.actor.testkit.typed {
+        single-expect-default = 5s
+        filter-leeway = 5s
+        system-shutdown-default = 30s
+      }
+      """
 
   class TestNodeFixture(
       grpcPort: Int,

@@ -46,30 +46,18 @@ public class IntegrationTest {
 
   private static final Logger logger = LoggerFactory.getLogger(IntegrationTest.class);
 
-  private static Config sharedConfig() {
-    return ConfigFactory.load("integration-test.conf");
-  }
+  private static final String SERVICE_NAME = "shopping-cart-service";
 
-  private static Config nodeConfig(
-      int grcpPort, List<Integer> managementPorts, int managementPortIndex) {
-    return ConfigFactory.parseString(
-        "shopping-cart-service.grpc.port = "
-            + grcpPort
-            + "\n"
-            + "akka.management.http.port = "
-            + managementPorts.get(managementPortIndex)
-            + "\n"
-            + "akka.discovery.config.services.shopping-cart-service.endpoints = [\n"
-            + "  { host = \"127.0.0.1\", port = "
-            + managementPorts.get(0)
-            + "},\n"
-            + "  { host = \"127.0.0.1\", port = "
-            + managementPorts.get(1)
-            + "},\n"
-            + "  { host = \"127.0.0.1\", port = "
-            + managementPorts.get(2)
-            + "},\n"
-            + "]");
+  private static Config config(
+      int grpcPort, List<Integer> managementPorts, int managementPortIndex) {
+    Config dynamicConfig =
+        DynamicTestConfig.endpointConfig(SERVICE_NAME, grpcPort)
+            .withFallback(DynamicTestConfig.clusterConfig(SERVICE_NAME, managementPorts, managementPortIndex));
+    return dynamicConfig // dynamic config
+        .withFallback(ConfigFactory.parseResources("integration-test-specific.conf")) // overrides specific to this test
+        .withFallback(ConfigFactory.parseResources("persistence-test.conf")) // persistence test overrides
+        .withFallback(ConfigFactory.load("application.conf")) // application config and reference config
+        .resolve();
   }
 
   private static class TestNodeFixture {
@@ -83,8 +71,7 @@ public class IntegrationTest {
       testKit =
           ActorTestKit.create(
               "IntegrationTest",
-              nodeConfig(grcpPort, managementPorts, managementPortIndex)
-                  .withFallback(sharedConfig()));
+              config(grcpPort, managementPorts, managementPortIndex));
       system = testKit.system();
       clientSettings =
           GrpcClientSettings.connectToServiceAt("127.0.0.1", grcpPort, system).withTls(false);

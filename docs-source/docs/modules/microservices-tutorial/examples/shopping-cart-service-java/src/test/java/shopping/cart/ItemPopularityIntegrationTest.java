@@ -11,7 +11,7 @@ import akka.cluster.MemberStatus;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import akka.cluster.sharding.typed.javadsl.EntityRef;
 import akka.cluster.typed.Cluster;
-import akka.cluster.typed.Join;
+import akka.testkit.SocketUtil;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.time.Duration;
@@ -27,8 +27,19 @@ import shopping.cart.repository.SpringIntegration;
 
 public class ItemPopularityIntegrationTest {
 
+  private static final String SERVICE_NAME = "shopping-cart-service";
+
   private static Config config() {
-    return ConfigFactory.load("item-popularity-integration-test.conf");
+    int grpcPort = SocketUtil.temporaryServerAddress("127.0.0.1", false).getPort();
+    int managementPort = SocketUtil.temporaryServerAddress("127.0.0.1", false).getPort();
+
+    Config dynamicConfig =
+        DynamicTestConfig.endpointConfig(SERVICE_NAME, grpcPort)
+            .withFallback(DynamicTestConfig.clusterConfig(SERVICE_NAME, managementPort));
+    return dynamicConfig
+        .withFallback(ConfigFactory.parseResources("persistence-test.conf"))
+        .withFallback(ConfigFactory.load("application.conf"))
+        .resolve();
   }
 
   @ClassRule public static final TestKitJunitResource testKit = new TestKitJunitResource(config());
@@ -42,19 +53,18 @@ public class ItemPopularityIntegrationTest {
     ApplicationContext springContext = SpringIntegration.applicationContext(system);
     itemPopularityRepository = springContext.getBean(ItemPopularityRepository.class);
     JpaTransactionManager transactionManager = springContext.getBean(JpaTransactionManager.class);
-    // create schemas
+    // create DB schema and tables
     CreateTableTestUtils.createTables(transactionManager, system);
 
+    // Start the sharded persistent entities
     ShoppingCart.init(system);
 
+    // Start the projection under test
     ItemPopularityProjection.init(system, transactionManager, itemPopularityRepository);
 
-    // form a single node cluster and make sure that completes before running the test
-    Cluster node = Cluster.get(system);
-    node.manager().tell(Join.create(node.selfMember().address()));
-
-    // let the node join and become Up
+    // Await until the cluster has formed
     TestProbe<Object> probe = testKit.createTestProbe();
+    Cluster node = Cluster.get(system);
     probe.awaitAssert(
         () -> {
           assertEquals(MemberStatus.up(), node.selfMember().status());
