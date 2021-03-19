@@ -23,8 +23,8 @@ jobs:
           scripts/copy-identical-files.sh
           git diff --exit-code --color || { echo "[error] Found modified file that was expected to be identical. Run scripts/copy-identical-files.sh"; false; }
 
-  java-compile-and-test-part1:
-    name: Compile and Test Part 1 (Java)
+  java-compile-and-test-part-final:
+    name: Compile and Test Final (Java)
     runs-on: ubuntu-18.04
     steps:
       - name: Checkout
@@ -56,6 +56,30 @@ jobs:
       - name: "Shopping order service (Java)"
         run: scripts/mvn-test.sh docs-source/docs/modules/microservices-tutorial/examples/shopping-order-service-java
 
+  java-compile-and-test-part-intermediate:
+    name: Compile and Test Intermediate (Java)
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Checkout GitHub merge
+        if: github.event.pull_request
+        run: |-
+          git fetch origin pull/${{ github.event.pull_request.number }}/merge:scratch
+          git checkout scratch
+
+      - name: Set up JDK 11
+        uses: olafurpg/setup-scala@v10
+        with:
+          java-version: adopt@1.11.0-9
+
+      - uses: actions/cache@v2.1.3
+        with:
+          path: ~/.m2/repository
+          key: maven-repo-${{ hashFiles('**/pom.xml') }}
+          restore-keys: maven-repo-
+
       - name: "00 Shopping analytics service (Java)"
         run: scripts/mvn-test.sh docs-source/docs/modules/microservices-tutorial/examples/00-shopping-analytics-service-java
 
@@ -77,8 +101,8 @@ jobs:
       - name: "04 Shopping cart service (Java)"
         run: scripts/mvn-test.sh docs-source/docs/modules/microservices-tutorial/examples/04-shopping-cart-service-java
 
-  java-compile-and-test-part2:
-    name: Compile and Test Part 2 (Java)
+  java-compile-and-test-flaky:
+    name: Compile and Test Flaky (Java)
     runs-on: ubuntu-18.04
     steps:
       - name: Checkout
@@ -107,8 +131,38 @@ jobs:
       - name: "Howto Cassandra code (Java)"
         run: scripts/mvn-test.sh docs-source/docs/modules/how-to/examples/shopping-cart-service-cassandra-java
 
-  scala-compile-and-test-part1:
-    name: Compile and Test Part 1 (Scala)
+  scala-compile-and-test-part-final:
+    name: Compile and Test Part Final (Scala)
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Checkout GitHub merge
+        if: github.event.pull_request
+        run: |-
+          git fetch origin pull/${{ github.event.pull_request.number }}/merge:scratch
+          git checkout scratch
+
+      - name: Set up JDK 11
+        uses: olafurpg/setup-scala@v10
+        with:
+          java-version: adopt@1.11.0-9
+
+      - name: Cache Coursier cache
+        uses: coursier/cache-action@v5
+
+      - name: "Shopping analytics service (Scala)"
+        run: scripts/sbt-test.sh docs-source/docs/modules/microservices-tutorial/examples/shopping-analytics-service-scala
+
+      - name: "Shopping cart service (Scala)"
+        run: scripts/sbt-test.sh docs-source/docs/modules/microservices-tutorial/examples/shopping-cart-service-scala
+
+      - name: "Shopping order service (Scala)"
+        run: scripts/sbt-test.sh docs-source/docs/modules/microservices-tutorial/examples/shopping-order-service-scala
+
+  scala-compile-and-test-intermediate:
+    name: Compile and Test Intermediate (Scala)
     runs-on: ubuntu-18.04
     steps:
       - name: Checkout
@@ -158,8 +212,8 @@ jobs:
       - name: "04 Shopping cart service (Scala)"
         run: scripts/sbt-test.sh docs-source/docs/modules/microservices-tutorial/examples/04-shopping-cart-service-scala
 
-  scala-compile-and-test-part2:
-    name: Compile and Test Part 2 (Scala)
+  scala-compile-and-test-flaky:
+    name: Compile and Test Flaky (Scala)
     runs-on: ubuntu-18.04
     steps:
       - name: Checkout
