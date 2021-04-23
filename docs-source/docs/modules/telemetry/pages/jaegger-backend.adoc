@@ -1,0 +1,33 @@
+= Using Jagger as the tracing reporter
+:page-toclevels: 3
+
+include::ROOT:partial$include.adoc[]
+
+Lightbend Telemetry can report traces to https://www.jaegertracing.io/[Jaegger {tab-icon}, window="tab"]. Lightbend Telemetry is compatible wit OpenTracing and supports other reporters. See the {cinnamon-docs}/extensions/opentracing/compatibility.html[OpenTracing documentation{tab-icon}, window="tab"] for more information. Using Jaegger has the added advantage tht it is compatible with vanilla xref:deployment:operator-reference.adoc#opentelemetry_sidecar[OpenTelemetry]
+
+The following is the core Cinnamon Jagger dependency that you will need to add to your build tool configuration, together with the {cinnamon-docs}/extensions/opentracing/jaeger.html[Jaegger reporter {tab-icon}, window="tab"]:
+
+[.tabset]
+Java::
++
+.pom.xml
+[source,xml,indent=0]
+----
+include::example$telemetry-sample/pom.xml[tag=telemetry-jaegger-dependencies]
+----
+
+Scala::
++
+.build.sbt
+[source,scala,indent=0]
+----
+include::example$telemetry-sample/build.sbt[tag=telemetry-jaegger-dependencies]
+----
+
+If you use the default Jaeger settings, there is nothing to configure. By default, the agent will communicate with localhost on port 5775.
+
+See the {cinnamon-docs}/extensions/opentracing/jaeger.html[Full Telemetry documentation  {tab-icon}, window="tab"] for  details and references regarding Jaegger configuration.
+
+== What is next?
+
+From here, you can check xref:deployment:operator-reference.adoc#opentelemetry_sidecar[how to deploy your application using Akka Operator, and how it integrates with OpenTelemetry].

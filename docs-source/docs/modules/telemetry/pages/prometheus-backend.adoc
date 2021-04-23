@@ -38,4 +38,4 @@ See the {cinnamon-docs}/plugins/prometheus/prometheus.html[Full Telemetry docume
 
 == What is next?
 
-From here, you can check xref:deployment:operator-reference.adoc#_reporting_metrics_to_prometheus[how to deploy your application using Akka Operator, and how it integrates with Prometheus].
+From here, you can check xref:deployment:operator-reference.adoc#reporting_metrics_to_prometheus[how to deploy your application using Akka Operator, and how it integrates with Prometheus].

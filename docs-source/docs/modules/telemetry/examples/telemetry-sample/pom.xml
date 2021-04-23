@@ -95,6 +95,21 @@
             <version>${lightbend.cinnamon.version}</version>
         </dependency>
         <!-- end::telemetry-prometheus-dependencies[] -->
+
+        <!-- tag::telemetry-jaegger-dependencies[] -->
+        <!-- Cinnamon Jaegger core dependency -->
+        <dependency>
+            <groupId>com.lightbend.cinnamon</groupId>
+            <artifactId>cinnamon-opentracing_2.12</artifactId>
+            <version>${lightbend.cinnamon.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.lightbend.cinnamon</groupId>
+            <artifactId>cinnamon-opentracing-jaeger</artifactId>
+            <version>${lightbend.cinnamon.version}</version>
+        </dependency>
+        <!-- end::telemetry-jaegger-dependencies[] -->
+
     </dependencies>
 
     <build>

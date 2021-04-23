@@ -59,3 +59,8 @@ libraryDependencies ++= Seq(
   Cinnamon.library.cinnamonPrometheus,
   Cinnamon.library.cinnamonPrometheusHttpServer)
 // end::telemetry-prometheus-dependencies[]
+
+// tag::telemetry-jaegger-dependencies[]
+libraryDependencies += Cinnamon.library.cinnamonOpenTracing
+libraryDependencies += Cinnamon.library.cinnamonOpenTracingJaeger
+// end::telemetry-jaegger-dependencies[]
