@@ -281,7 +281,11 @@ Additionally to Up and Non-Up, there is also Unreachable. This is the number of 
 
 These numbers can be useful to watch the Akka cluster state during rolling updates to make sure it is in a normal state. See xref:troubleshooting.adoc[troubleshooting deployment status] for some examples.
 
-== Reporting Metrics to Prometheus
+== Telemetry
+
+The Akka Operator supports several modes of telemetry reporting. First, there's the classic architecture where the application directly pushes traces or exposes a prometheus port. Second, is the architecture based on the OpenTelemetry side-car.
+
+=== Reporting Metrics to Prometheus (Classic)
 
 Exporting metrics to Prometheus requires opening a port on your Pods. The https://prometheus.io/docs/introduction/overview/#architecture[Prometheus Architecture documentation  {tab-icon}, window="tab"] explains all the components of Prometheus and how data is extracted from your process: for Prometheus to gather the metrics from your process you have to expose an HTTP server. The Akka Operator assumes your application uses xref:telemetry:index.adoc[Lightbend Telemetry] and that it is xref:telemetry:prometheus-backend.adoc[configured to report metrics to Prometheus]. Once you configure the build of your application following the Lightbend Telemetry docs, you should have the `http-server` exporter enabled on your configuration. That `cinnamon.prometheus.exporters += http-server` setting binds, by default, to the port `9001`. Then, you need to configure the Kubernetes resource to open the Prometheus port:
 
@@ -310,6 +314,10 @@ cinnamon.prometheus {
 ----
 
 In the examples above, the `telemetry.conf` configures the port to `9008`. It also configures a conditional overwrite using the `pass:[${NAME}]` syntax: if the `HTTP_PROMETHEUS_PORT` environment variable exists, then use that value. When deploying the application using the Akka Operator, the `HTTP_PROMETHEUS_PORT` environment variable will exist and the value is set to `9005` (see snippet above) so the Telemetry agent will start Prometheus's `http-server` on port `9005`.
+
+=== OpenTelemetry side-car
+
+
 
 == Namespaces
 
