@@ -317,7 +317,7 @@ cinnamon.prometheus {
 In the examples above, the `telemetry.conf` configures the port to `9008`. It also configures a conditional overwrite using the `pass:[${NAME}]` syntax: if the `HTTP_PROMETHEUS_PORT` environment variable exists, then use that value. When deploying the application using the Akka Operator, the `HTTP_PROMETHEUS_PORT` environment variable will exist and the value is set to `9005` (see snippet above) so the Telemetry agent will start Prometheus's `http-server` on port `9005`.
 
 [#opentelemetry_sidecar]
-=== OpenTelemetry side-car
+=== OpenTelemetry side-car (defaults)
 
 Using the OpenTelemetry side-car, the Pod where your application container is deployed will emit OTLP metrics and traces. Then, an OpenTelemetry Collector can receive that OTLP data and share it to you preferred backends.
 
@@ -349,13 +349,14 @@ spec:
     collector: TODO: address of the external collector <3>
 ----
 
-<1> use `tracing: "on"` to enable propagation of traces. This will expect traces using the Jaegger protocol over gRPC sent to the port *14250*.
-<2> use `metrics: "on"` to enable propagation of metrics. This will scrape Prometheus data on the port xref:telemetry:prometheus-backend.adoc[*9001*] of the application container.
+<1> use `tracing: "on"` to enable propagation of traces. This will expect traces using the Jaegger protocol over gRPC sent to the port *14250*. Make sure you also configure the application to xref:telemetry:prometheus-backend.adoc[report traces to Jaegger].
+<2> use `metrics: "on"` to enable propagation of metrics. This will scrape Prometheus data on the port *9001* of the application container. Make sure you also configure the application to xref:telemetry:prometheus-backend.adoc[report metrics to Prometheus].
 <3> use `collector: TODO` to set the location of the external collector where the side-car will send the data to.
 
-Once you've enabled the side-car to forward metrics and traces, you must make sure the application produces that data. First, set up your application to use xref:telemetry:index.adoc[Lightbend Telemetry]. Then, xref:telemetry:prometheus-backend.adoc[configure the application to report metrics to Prometheus]. Finally, xref:telemetry:prometheus-backend.adoc[configure the application to report traces to Jaegger].
+[#opentelemetry_sidecar_custom]
+=== OpenTelemetry side-car (custom)
 
-For more advanced tuning of the OpenTelemetry side-car you can provide your own configuration:
+For more advanced tuning of the OpenTelemetry side-car you can provide your own configuration via a secret:
 
 .kubernetes/shopping-cart-service-cr.yml
 [source,yaml]
@@ -366,10 +367,12 @@ metadata:
   name: shopping-cart-service
 spec:
   opentelemetry:
-    configSecret: opentelemetry-sidecar-config
+    configSecret: opentelemetry-sidecar-config <1>
 ----
 
-Providing your configuration will overwrite the once provided by the operator so the properties `tracing`, `metrics` and `collector` will be ignored.
+<1> A secret containing the YAML configuration for the OpenTelemetry agent.
+
+Providing your configuration will overwrite the one provided by the operator so the properties `tracing`, `metrics` and `collector` of the <<opentelemetry_sidecar>> will be ignored.
 
 Refer to the https://opentelemetry.io/docs/collector/configuration/[documentation for the OpenTelemetry agent] to set up the OpenTelemetry side-car to your needs.
 
