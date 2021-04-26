@@ -34,7 +34,7 @@ include::example$telemetry-sample/src/main/resources/telemetry.conf[tag=telemetr
 
 Metrics from Prometheus will now be available at the configured server location. If you are using the defaults, the location is http://localhost:9001/metrics.
 
-See the {cinnamon-docs}/plugins/prometheus/prometheus.html[Full Telemetry documentation  {tab-icon}, window="tab"] for  details and references regarding Prometheus configuration.
+See the {cinnamon-docs}/plugins/prometheus/prometheus.html[Full Telemetry documentation  {tab-icon}, window="tab"] for details and references regarding Prometheus configuration.
 
 == What is next?
 

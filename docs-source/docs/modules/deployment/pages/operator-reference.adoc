@@ -319,11 +319,21 @@ In the examples above, the `telemetry.conf` configures the port to `9008`. It al
 [#opentelemetry_sidecar]
 === OpenTelemetry side-car
 
-Using the OpenTelemetry side-car the Pod where your application contrainer is deployed will emit OTLP metrics and traces. Then, an OTel Collector can receive that OTLP data and share it to you preferred backends.
+Using the OpenTelemetry side-car, the Pod where your application container is deployed will emit OTLP metrics and traces. Then, an OpenTelemetry Collector can receive that OTLP data and share it to you preferred backends.
 
-NOTE: You can read more about the components on the https://opentelemetry.io/docs/concepts/components/[OpenTelemetry docs  {tab-icon}, window="tab"]
+The OpenTelemetry side-car:
 
-Configure the application CR to add the OpenTelemetry side-car to the Pods:
+. MAY process Jaegger traces and forward them as OTLP traces
+. MAY scrape the application containers to extract prometheus metrics and forward those them as OTLP metrics
+. WILL send all the collected data to an external OTLP Collector
+
+The OTLP Collector is a stand-alone process you will have to install separately. This standalone process may store the OTLP data or propagate it to specific backends such as Grafana, AWS CloudWatch, AWS X-Ray, GCP Cloud Trace, Google Cloud Monitoring,...
+
+NOTE: You can read more about the https://opentelemetry.io/docs/concepts/components/[OpenTelemetry components  {tab-icon}, window="tab"] and the https://opentelemetry.io/registry/?s=collector[OpenTelemetry collectors  {tab-icon}, window="tab"] on the OpenTelemetry docs.
+
+Configure the application CR to add the OpenTelemetry side-car to the application Pods.
+
+The Akka Operator configures the OpenTelemetry side-car with a few defaults and only needs you to enable or disable a couple of fetaures and indicate the location of the collector:
 
 .kubernetes/shopping-cart-service-cr.yml
 [source,yaml]
@@ -334,10 +344,34 @@ metadata:
   name: shopping-cart-service
 spec:
   opentelemetry:
-    collector: TODO-address
+    tracing: "on" <1>
+    metrics: "on" <2>
+    collector: TODO: address of the external collector <3>
 ----
 
-Once the Pod is ready to forward metrics and traces you must make sure the application produces that data. First, setup your application to use xref:telemetry:index.adoc[Lightbend Telemetry]. Then, xref:telemetry:prometheus-backend.adoc[configure the application to report metrics to Prometheus]. Finally,, xref:telemetry:prometheus-backend.adoc[configure the application to report traces to Jaegger].
+<1> use `tracing: "on"` to enable propagation of traces. This will expect traces using the Jaegger protocol over gRPC sent to the port *14250*.
+<2> use `metrics: "on"` to enable propagation of metrics. This will scrape Prometheus data on the port xref:telemetry:prometheus-backend.adoc[*9001*] of the application container.
+<3> use `collector: TODO` to set the location of the external collector where the side-car will send the data to.
+
+Once you've enabled the side-car to forward metrics and traces, you must make sure the application produces that data. First, set up your application to use xref:telemetry:index.adoc[Lightbend Telemetry]. Then, xref:telemetry:prometheus-backend.adoc[configure the application to report metrics to Prometheus]. Finally, xref:telemetry:prometheus-backend.adoc[configure the application to report traces to Jaegger].
+
+For more advanced tuning of the OpenTelemetry side-car you can provide your own configuration:
+
+.kubernetes/shopping-cart-service-cr.yml
+[source,yaml]
+----
+apiVersion: akka.lightbend.com/v1
+kind: AkkaMicroservice
+metadata:
+  name: shopping-cart-service
+spec:
+  opentelemetry:
+    configSecret: opentelemetry-sidecar-config
+----
+
+Providing your configuration will overwrite the once provided by the operator so the properties `tracing`, `metrics` and `collector` will be ignored.
+
+Refer to the https://opentelemetry.io/docs/collector/configuration/[documentation for the OpenTelemetry agent] to set up the OpenTelemetry side-car to your needs.
 
 == Namespaces
 
