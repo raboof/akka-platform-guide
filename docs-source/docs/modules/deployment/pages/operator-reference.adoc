@@ -348,12 +348,14 @@ spec:
   opentelemetry:
     tracing: "on" <1>
     metrics: "on" <2>
-    collector: TODO: address of the external collector <3>
+    collectorUrl: TODO: address of the external collector <3>
 ----
 
-<1> use `tracing: "on"` to enable propagation of traces. This will expect traces using the Jaegger protocol over gRPC sent to the port *14250*. Make sure you also configure the application to xref:telemetry:prometheus-backend.adoc[report traces to Jaegger].
+<1> use `tracing: "on"` to enable propagation of traces. This will expect traces using the Jaegger protocol using the https://www.jaegertracing.io/docs/1.22/client-features/[Thrift Compact {tab-icon}, window="tab"] format over UDP sent to the port *6831*. Make sure you also configure the application to xref:telemetry:jaegger-backend.adoc[report traces to Jaegger].
 <2> use `metrics: "on"` to enable propagation of metrics. This will scrape Prometheus data on the port *9001* of the application container. Make sure you also configure the application to xref:telemetry:prometheus-backend.adoc[report metrics to Prometheus].
-<3> use `collector: TODO` to set the location of the external collector where the side-car will send the data to.
+<3> use `collectorUrl: TODO` to set the location of the external collector where the side-car will send the data to.
+
+By default, both `metrics` and `tracing` are `off`. If you don't enable at least one of the two the side-car will not be added.
 
 [#opentelemetry_sidecar_custom]
 === OpenTelemetry side-car (custom)
