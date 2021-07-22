@@ -55,7 +55,9 @@ libraryDependencies ++= Seq(
   // Use Akka Projection instrumentation
   Cinnamon.library.cinnamonAkkaProjection,
   // Use Akka HTTP instrumentation
-  Cinnamon.library.cinnamonAkkaHttp)
+  Cinnamon.library.cinnamonAkkaHttp,
+  // Use Akka gRPC instrumentation
+  Cinnamon.library.cinnamonAkkaGrpc)
 // end::telemetry-dependencies[]
 
 // tag::telemetry-prometheus-dependencies[]
@@ -63,3 +65,9 @@ libraryDependencies ++= Seq(
   Cinnamon.library.cinnamonPrometheus,
   Cinnamon.library.cinnamonPrometheusHttpServer)
 // end::telemetry-prometheus-dependencies[]
+
+// tag::telemetry-opentracing-dependencies[]
+libraryDependencies ++= Seq(
+  Cinnamon.library.cinnamonOpenTracing,
+  Cinnamon.library.cinnamonOpenTracingZipkin)
+// end::telemetry-opentracing-dependencies[]
