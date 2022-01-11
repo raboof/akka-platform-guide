@@ -24,8 +24,8 @@ run / javaOptions :=
   javaOptions.value ++ (
     sys.props.get("config.resource") match {
       case None =>
-        throw new IllegalStateException(
-          "Please specify a configuration to use, e.g. " ++
+        throw new IllegalArgumentException(
+          "Please specify a configuration to use, e.g. " +
           " `sbt -Dconfig.resource=local1.conf run`"
         )
       case Some(r) =>
